@@ -15,7 +15,7 @@ import BookAppointment from './pages/BookAppointment';
 function App() {
   return (
     <AuthProvider>
-      <Router>
+      <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <div className="min-h-screen bg-gray-100">
           <Navbar />
           <main className="py-10">
@@ -66,7 +66,7 @@ function App() {
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
             </Routes>
           </main>
-    </div>
+        </div>
       </Router>
     </AuthProvider>
   );
