@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
 function BookAppointment() {
   const [form, setForm] = useState({
     name: '',
@@ -78,7 +80,7 @@ function BookAppointment() {
         appointmentData.address = form.address.trim();
       }
 
-      const response = await axios.post('http://localhost:5000/api/public/book-appointment', appointmentData);
+      const response = await axios.post(`${API_BASE_URL}/api/public/book-appointment`, appointmentData);
 
       console.log('✅ Server response:', response.data);
 

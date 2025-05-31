@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
 function NewPatient() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
@@ -36,7 +38,7 @@ function NewPatient() {
 
       console.log('Creating patient with data:', formData);
       
-      const response = await axios.post('http://localhost:5000/api/patients', formData, {
+      const response = await axios.post(`${API_BASE_URL}/api/patients`, formData, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem('token')}`
         }

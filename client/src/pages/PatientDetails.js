@@ -4,6 +4,8 @@ import axios from 'axios';
 import { PlusIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../contexts/AuthContext';
 
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
 function PatientDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -54,7 +56,7 @@ function PatientDetails() {
 
       console.log('Fetching patient with ID:', id);
       
-      const response = await axios.get(`http://localhost:5000/api/patients/${id}?page=${page}&limit=${limit}`, {
+      const response = await axios.get(`${API_BASE_URL}/api/patients/${id}?page=${page}&limit=${limit}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem('token')}`
         }
@@ -167,7 +169,7 @@ function PatientDetails() {
     try {
       console.log('Submitting visit data:', visitData);
       
-      const response = await axios.post(`http://localhost:5000/api/patients/${id}/visits`, visitData, {
+      const response = await axios.post(`${API_BASE_URL}/api/patients/${id}/visits`, visitData, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem('token')}`
         }
