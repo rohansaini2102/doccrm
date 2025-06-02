@@ -6,6 +6,8 @@ import { BellIcon } from '@heroicons/react/24/outline';
 import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import { io } from 'socket.io-client';
 
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://doccrm-2.onrender.com';
+
 function Dashboard() {
   const [patients, setPatients] = useState([]);
   const [appointments, setAppointments] = useState([]);
@@ -33,7 +35,7 @@ function Dashboard() {
 
   const initializeSocket = () => {
     console.log('🔌 Initializing Socket.IO connection...');
-    const newSocket = io('http://localhost:5000', {
+    const newSocket = io(API_BASE_URL, {
       transports: ['websocket', 'polling']
     });
 
@@ -101,11 +103,11 @@ function Dashboard() {
       setError('');
       
       const [patientsRes, appointmentsRes] = await Promise.all([
-        axios.get('http://localhost:5000/api/patients', {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        axios.get(`${API_BASE_URL}/api/patients`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` }
         }),
-        axios.get('http://localhost:5000/api/appointments/upcoming', {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        axios.get(`${API_BASE_URL}/api/appointments/upcoming`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` }
         })
       ]);
 
@@ -143,8 +145,8 @@ function Dashboard() {
 
   const fetchNotifications = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/notifications', {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      const response = await axios.get(`${API_BASE_URL}/api/notifications`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` }
       });
 
       if (response.data && response.data.success) {
@@ -164,8 +166,8 @@ function Dashboard() {
     }
 
     try {
-      const response = await axios.get(`http://localhost:5000/api/patients/search?query=${searchQuery}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      const response = await axios.get(`${API_BASE_URL}/api/patients/search?query=${searchQuery}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` }
       });
 
       console.log('Search response:', response.data);
@@ -186,8 +188,8 @@ function Dashboard() {
 
   const markNotificationAsRead = async (notificationId) => {
     try {
-      await axios.patch(`http://localhost:5000/api/notifications/${notificationId}/read`, {}, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      await axios.patch(`${API_BASE_URL}/api/notifications/${notificationId}/read`, {}, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` }
       });
     } catch (error) {
       console.error('Error marking notification as read:', error);
@@ -196,8 +198,8 @@ function Dashboard() {
 
   const markAllNotificationsAsRead = async () => {
     try {
-      await axios.patch('http://localhost:5000/api/notifications/read-all', {}, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      await axios.patch(`${API_BASE_URL}/api/notifications/read-all`, {}, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` }
       });
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
