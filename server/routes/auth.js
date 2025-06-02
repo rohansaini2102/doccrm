@@ -6,6 +6,23 @@ const config = require('../config/config');
 
 const router = express.Router();
 
+// Generate tokens
+const generateTokens = (user) => {
+  const accessToken = jwt.sign(
+    { userId: user._id, username: user.username },
+    config.jwtSecret,
+    { expiresIn: '1h' } // Access token expires in 1 hour
+  );
+
+  const refreshToken = jwt.sign(
+    { userId: user._id },
+    config.jwtSecret,
+    { expiresIn: '7d' } // Refresh token expires in 7 days
+  );
+
+  return { accessToken, refreshToken };
+};
+
 // Middleware to verify JWT token
 const verifyToken = async (req, res, next) => {
   try {
@@ -31,6 +48,13 @@ const verifyToken = async (req, res, next) => {
     req.user = user;
     next();
   } catch (error) {
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Token expired',
+        code: 'TOKEN_EXPIRED'
+      });
+    }
     console.error('Token verification error:', error);
     res.status(401).json({
       success: false,
@@ -57,6 +81,44 @@ router.get('/me', verifyToken, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error'
+    });
+  }
+});
+
+// POST /api/auth/refresh-token
+router.post('/refresh-token', async (req, res) => {
+  try {
+    const refreshToken = req.body.refreshToken;
+    
+    if (!refreshToken) {
+      return res.status(400).json({
+        success: false,
+        message: 'Refresh token is required'
+      });
+    }
+
+    const decoded = jwt.verify(refreshToken, config.jwtSecret);
+    const user = await User.findById(decoded.userId).select('-password');
+    
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid refresh token'
+      });
+    }
+
+    const { accessToken, refreshToken: newRefreshToken } = generateTokens(user);
+
+    res.json({
+      success: true,
+      accessToken,
+      refreshToken: newRefreshToken
+    });
+  } catch (error) {
+    console.error('Refresh token error:', error);
+    res.status(401).json({
+      success: false,
+      message: 'Invalid refresh token'
     });
   }
 });
@@ -98,18 +160,15 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // Generate token
-    const token = jwt.sign(
-      { userId: user._id, username: user.username },
-      config.jwtSecret,
-      { expiresIn: '24h' }
-    );
+    // Generate tokens
+    const { accessToken, refreshToken } = generateTokens(user);
 
     console.log('✅ Login successful for user:', username);
     
     res.json({
       success: true,
-      token,
+      accessToken,
+      refreshToken,
       user: {
         id: user._id,
         username: user.username,

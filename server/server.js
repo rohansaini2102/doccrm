@@ -18,12 +18,20 @@ const appointmentRoutes = require('./routes/appointments');
 const app = express();
 const server = http.createServer(app);
 
+// Default allowed origins
+const defaultOrigins = [
+  'https://doccrm-2.onrender.com',
+  'http://localhost:3000',
+  'http://localhost:3001'
+];
+
 // Socket.IO setup with CORS
 const io = new Server(server, {
   cors: {
-    origin: ['http://localhost:3000', 'http://localhost:3001'],
-    methods: ['GET', 'POST'],
-    credentials: true
+    origin: defaultOrigins,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
   }
 });
 
@@ -48,12 +56,17 @@ io.on('connection', (socket) => {
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
   .split(',')
   .map(origin => origin.trim())
-  .filter(Boolean);
+  .filter(Boolean)
+  .concat(defaultOrigins);
+
+// Remove duplicates
+const uniqueOrigins = [...new Set(allowedOrigins)];
 
 app.use(cors({
   origin: function(origin, callback) {
     if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) === -1) {
+    if (uniqueOrigins.indexOf(origin) === -1) {
+      console.warn('⚠️ CORS blocked request from:', origin);
       const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
       return callback(new Error(msg), false);
     }
