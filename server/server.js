@@ -33,7 +33,7 @@ const io = new Server(server, {
     origin: process.env.NODE_ENV === 'production' ? defaultOrigins : '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
   }
 });
 
@@ -64,34 +64,58 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
 // Remove duplicates
 const uniqueOrigins = [...new Set(allowedOrigins)];
 
+// Enhanced CORS configuration
 app.use(cors({
   origin: function(origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
+    if (!origin) {
+      console.log('⚠️ Request with no origin received');
+      return callback(null, true);
+    }
     
     // In development, allow all origins
     if (process.env.NODE_ENV !== 'production') {
+      console.log('🔧 Development mode: Allowing origin:', origin);
       return callback(null, true);
     }
 
+    // Check if origin is allowed
     if (uniqueOrigins.indexOf(origin) === -1) {
       console.warn('⚠️ CORS blocked request from:', origin);
       const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
       return callback(new Error(msg), false);
     }
+
+    console.log('✅ Allowing CORS request from:', origin);
     return callback(null, true);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  maxAge: 86400 // 24 hours
 }));
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Logging middleware
+// Enhanced logging middleware
 app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  const start = Date.now();
+  console.log(`📥 ${new Date().toISOString()} - ${req.method} ${req.path}`);
+  console.log('📋 Request Headers:', req.headers);
+  
+  // Log request body for non-GET requests
+  if (req.method !== 'GET') {
+    console.log('📦 Request Body:', req.body);
+  }
+
+  // Add response logging
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    console.log(`📤 ${new Date().toISOString()} - ${req.method} ${req.path} - ${res.statusCode} (${duration}ms)`);
+  });
+
   next();
 });
 

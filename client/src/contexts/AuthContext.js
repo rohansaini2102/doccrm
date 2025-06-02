@@ -1,21 +1,34 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://doccrm-2.onrender.com/api';
+// Update the base URL to include /api
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://doccrm-2.onrender.com';
 
 // Create axios instance with default config
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
-    'Content-Type': 'application/json'
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
   },
-  timeout: 10000, // 10 second timeout
-  withCredentials: true // Enable sending cookies
+  timeout: 15000, // 15 second timeout
+  withCredentials: true, // Enable sending cookies
+  validateStatus: function (status) {
+    return status >= 200 && status < 500; // Accept all status codes less than 500
+  }
 });
 
 // Add request interceptor to add token to requests
 api.interceptors.request.use(
   (config) => {
+    // Log request details
+    console.log('🚀 API Request:', {
+      url: config.url,
+      method: config.method,
+      headers: config.headers,
+      data: config.data
+    });
+
     const token = localStorage.getItem('accessToken');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -23,25 +36,59 @@ api.interceptors.request.use(
     return config;
   },
   (error) => {
-    console.error('Request error:', error);
+    console.error('❌ Request error:', error);
     return Promise.reject(error);
   }
 );
 
 // Add response interceptor to handle token refresh
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Log successful response
+    console.log('✅ API Response:', {
+      url: response.config.url,
+      status: response.status,
+      data: response.data
+    });
+
+    // Check if response indicates success
+    if (response.data && !response.data.success) {
+      return Promise.reject(new Error(response.data.message || 'Request failed'));
+    }
+
+    return response;
+  },
   async (error) => {
     const originalRequest = error.config;
 
-    // Log the error for debugging
-    console.error('API Error:', {
+    // Log detailed error information
+    console.error('❌ API Error:', {
       url: originalRequest?.url,
       method: originalRequest?.method,
       status: error.response?.status,
+      statusText: error.response?.statusText,
       message: error.message,
-      data: error.response?.data
+      data: error.response?.data,
+      headers: error.response?.headers
     });
+
+    // Handle network errors
+    if (!error.response) {
+      console.error('🌐 Network error:', error);
+      return Promise.reject(new Error('Network error. Please check your internet connection and try again.'));
+    }
+
+    // Handle CORS errors
+    if (error.message.includes('CORS')) {
+      console.error('🔄 CORS error:', error);
+      return Promise.reject(new Error('CORS error. Please check your API configuration.'));
+    }
+
+    // Handle timeout errors
+    if (error.code === 'ECONNABORTED') {
+      console.error('⏰ Request timeout:', error);
+      return Promise.reject(new Error('Request timed out. Please try again.'));
+    }
 
     // If error is 401 and we haven't tried to refresh token yet
     if (error.response?.status === 401 && !originalRequest._retry) {
@@ -53,9 +100,14 @@ api.interceptors.response.use(
           throw new Error('No refresh token available');
         }
 
-        const response = await axios.post(`${API_BASE_URL}/auth/refresh-token`, {
+        console.log('🔄 Attempting token refresh...');
+        const response = await axios.post(`${API_BASE_URL}/api/auth/refresh-token`, {
           refreshToken
         });
+
+        if (!response.data.success) {
+          throw new Error(response.data.message || 'Token refresh failed');
+        }
 
         const { accessToken, refreshToken: newRefreshToken } = response.data;
 
@@ -66,22 +118,17 @@ api.interceptors.response.use(
         // Update the failed request's authorization header
         originalRequest.headers.Authorization = `Bearer ${accessToken}`;
 
+        console.log('✅ Token refresh successful, retrying original request');
         // Retry the original request
         return api(originalRequest);
       } catch (refreshError) {
-        console.error('Token refresh failed:', refreshError);
+        console.error('❌ Token refresh failed:', refreshError);
         // If refresh token fails, logout user
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
         window.location.href = '/login';
-        return Promise.reject(refreshError);
+        return Promise.reject(new Error('Session expired. Please login again.'));
       }
-    }
-
-    // Handle network errors
-    if (!error.response) {
-      console.error('Network error:', error);
-      return Promise.reject(new Error('Network error. Please check your internet connection.'));
     }
 
     // Handle other errors
@@ -116,7 +163,7 @@ export const AuthProvider = ({ children }) => {
   const fetchUser = async (token) => {
     try {
       console.log('🔍 Fetching user profile...');
-      const response = await api.get('/auth/me');
+      const response = await api.get('/api/auth/me');
       
       console.log('✅ User profile fetched successfully:', response.data);
       
@@ -139,7 +186,7 @@ export const AuthProvider = ({ children }) => {
     try {
       console.log('🔐 Attempting login for:', username);
       
-      const response = await api.post('/auth/login', {
+      const response = await api.post('/api/auth/login', {
         username,
         password
       });
@@ -165,7 +212,7 @@ export const AuthProvider = ({ children }) => {
     try {
       console.log('📝 Attempting registration:', userData);
       
-      const response = await api.post('/auth/register', userData);
+      const response = await api.post('/api/auth/register', userData);
 
       console.log('✅ Registration response received:', response.data);
 
