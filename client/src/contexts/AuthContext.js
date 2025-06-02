@@ -33,6 +33,10 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+    // Add origin header for CORS
+    config.headers['Origin'] = window.location.origin;
+
     return config;
   },
   (error) => {

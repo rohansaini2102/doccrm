@@ -21,6 +21,7 @@ const server = http.createServer(app);
 // Default allowed origins
 const defaultOrigins = [
   'https://doccrm-2.onrender.com',
+  'https://doccrm-rho.vercel.app',
   'http://localhost:3000',
   'http://localhost:3001',
   'http://127.0.0.1:3000',
