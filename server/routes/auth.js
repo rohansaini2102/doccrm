@@ -229,19 +229,16 @@ router.post('/register', async (req, res) => {
 
     await user.save();
     
-    // Generate token
-    const token = jwt.sign(
-      { userId: user._id, username: user.username },
-      config.jwtSecret,
-      { expiresIn: '24h' }
-    );
+    // Generate tokens using the new function
+    const { accessToken, refreshToken } = generateTokens(user);
 
     console.log('✅ User registered successfully:', username);
 
     res.status(201).json({
       success: true,
       message: 'User created successfully',
-      token,
+      accessToken,
+      refreshToken,
       user: {
         id: user._id,
         username: user.username,

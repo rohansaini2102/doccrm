@@ -22,13 +22,15 @@ const server = http.createServer(app);
 const defaultOrigins = [
   'https://doccrm-2.onrender.com',
   'http://localhost:3000',
-  'http://localhost:3001'
+  'http://localhost:3001',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:3001'
 ];
 
 // Socket.IO setup with CORS
 const io = new Server(server, {
   cors: {
-    origin: defaultOrigins,
+    origin: process.env.NODE_ENV === 'production' ? defaultOrigins : '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
@@ -64,7 +66,14 @@ const uniqueOrigins = [...new Set(allowedOrigins)];
 
 app.use(cors({
   origin: function(origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
+    
+    // In development, allow all origins
+    if (process.env.NODE_ENV !== 'production') {
+      return callback(null, true);
+    }
+
     if (uniqueOrigins.indexOf(origin) === -1) {
       console.warn('⚠️ CORS blocked request from:', origin);
       const msg = 'The CORS policy for this site does not allow access from the specified Origin.';

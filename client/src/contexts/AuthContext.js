@@ -1,14 +1,16 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://doccrm-2.onrender.com/api';
 
 // Create axios instance with default config
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json'
-  }
+  },
+  timeout: 10000, // 10 second timeout
+  withCredentials: true // Enable sending cookies
 });
 
 // Add request interceptor to add token to requests
@@ -21,6 +23,7 @@ api.interceptors.request.use(
     return config;
   },
   (error) => {
+    console.error('Request error:', error);
     return Promise.reject(error);
   }
 );
@@ -30,6 +33,15 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+
+    // Log the error for debugging
+    console.error('API Error:', {
+      url: originalRequest?.url,
+      method: originalRequest?.method,
+      status: error.response?.status,
+      message: error.message,
+      data: error.response?.data
+    });
 
     // If error is 401 and we haven't tried to refresh token yet
     if (error.response?.status === 401 && !originalRequest._retry) {
@@ -41,7 +53,7 @@ api.interceptors.response.use(
           throw new Error('No refresh token available');
         }
 
-        const response = await axios.post(`${API_BASE_URL}/api/auth/refresh-token`, {
+        const response = await axios.post(`${API_BASE_URL}/auth/refresh-token`, {
           refreshToken
         });
 
@@ -57,6 +69,7 @@ api.interceptors.response.use(
         // Retry the original request
         return api(originalRequest);
       } catch (refreshError) {
+        console.error('Token refresh failed:', refreshError);
         // If refresh token fails, logout user
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
@@ -65,7 +78,15 @@ api.interceptors.response.use(
       }
     }
 
-    return Promise.reject(error);
+    // Handle network errors
+    if (!error.response) {
+      console.error('Network error:', error);
+      return Promise.reject(new Error('Network error. Please check your internet connection.'));
+    }
+
+    // Handle other errors
+    const errorMessage = error.response?.data?.message || error.message || 'An error occurred';
+    return Promise.reject(new Error(errorMessage));
   }
 );
 
@@ -95,7 +116,7 @@ export const AuthProvider = ({ children }) => {
   const fetchUser = async (token) => {
     try {
       console.log('🔍 Fetching user profile...');
-      const response = await api.get('/api/auth/me');
+      const response = await api.get('/auth/me');
       
       console.log('✅ User profile fetched successfully:', response.data);
       
@@ -118,7 +139,7 @@ export const AuthProvider = ({ children }) => {
     try {
       console.log('🔐 Attempting login for:', username);
       
-      const response = await api.post('/api/auth/login', {
+      const response = await api.post('/auth/login', {
         username,
         password
       });
@@ -144,7 +165,7 @@ export const AuthProvider = ({ children }) => {
     try {
       console.log('📝 Attempting registration:', userData);
       
-      const response = await api.post('/api/auth/register', userData);
+      const response = await api.post('/auth/register', userData);
 
       console.log('✅ Registration response received:', response.data);
 
